@@ -2,7 +2,7 @@
 
 Seamlessly integrate Claude Code CLI into your Neovim workflow.
 
-![claude-cli demo](https://user-images.githubusercontent.com/placeholder.gif)
+https://github.com/user-attachments/assets/7a96fad4-ade7-4a7a-88b4-d7cb8a96f84a
 
 ## Features
 
