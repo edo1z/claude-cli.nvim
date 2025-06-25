@@ -90,7 +90,7 @@ local function create_prompt_window()
     col = col,
     style = 'minimal',
     border = 'rounded',
-    title = ' Claude Prompt (Ctrl+s:送信, Ctrl+l:スニペット, Ctrl+h:履歴) ',
+    title = ' Claude Prompt (Ctrl+s:送信, Ctrl+l:スニペット, Ctrl+h:履歴, q:閉じる) ',
     title_pos = 'center',
   })
   
@@ -119,6 +119,11 @@ local function create_prompt_window()
   
   -- ウィンドウを閉じる（内容は保持）
   vim.keymap.set('n', '<Esc>', function()
+    M.hide_prompt()
+  end, opts)
+  
+  -- qキーでもウィンドウを閉じる
+  vim.keymap.set('n', 'q', function()
     M.hide_prompt()
   end, opts)
 end

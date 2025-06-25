@@ -13,6 +13,8 @@ https://github.com/user-attachments/assets/7a96fad4-ade7-4a7a-88b4-d7cb8a96f84a
 - 💾 **Persistent Storage** - Save snippets and command history
 - 🚀 **Dangerous Mode** - Skip permissions when needed
 - 🔄 **Auto-reload Files** - Automatically updates files modified by Claude Code (built-in)
+- 🔗 **Session Continuation** - Continue from the last Claude Code session with `-c` flag
+- 👁️ **Window Toggle** - Show/hide Claude Code window without closing the session
 
 ## Requirements
 
@@ -46,16 +48,32 @@ use 'edo1z/claude-cli.nvim'
 
 ## Quick Start
 
-1. Toggle Claude Code terminal: `<leader>cc`
-2. Toggle with dangerous mode: `<leader>cd`
-3. Open prompt builder: `<leader>ka`
-4. Send current error: `<leader>ke`
-5. Send file path: `<leader>kp`
-6. Send selection: `<leader>ks` (visual mode)
+### Session Management
+Claude CLI for Neovim manages **one active session at a time**. Here's how it works:
+
+1. **Smart Toggle**: `<leader>cc` / `<leader>cd`
+   - **First press**: Starts a new Claude Code session
+   - **Subsequent presses**: Toggles window visibility (keeps session active)
+   - `<leader>cd` adds `--dangerously-skip-permissions` flag
+
+2. **Force New Session (with continuation)**: `<leader>cC` / `<leader>cD`
+   - Always closes existing session and starts fresh with `-c` flag
+   - Useful when you want to continue from last Claude conversation
+   - `<leader>cD` adds dangerous mode
+
+3. **Explicit Window Toggle**: `<leader>ct`
+   - Only toggles window visibility
+   - Shows message if no active session exists
+
+### Context Actions
+1. Open prompt builder: `<leader>ca`
+2. Send current error: `<leader>ce`
+3. Send file path: `<leader>cp`
+4. Send selection: `<leader>cs` (visual mode)
 
 ## Prompt Builder Features
 
-When in the prompt builder (`<leader>ka`):
+When in the prompt builder (`<leader>ca`):
 
 | Key | Action |
 |-----|--------|
@@ -77,8 +95,15 @@ In snippet/history list:
 ```lua
 require('claude-cli').setup({
   keymaps = {
-    toggle = "<leader>cc",         -- Toggle Claude Code
-    toggle_dangerous = "<leader>cd", -- Toggle with --dangerously-skip-permissions
+    toggle = "<leader>cc",                 -- New session or toggle window
+    toggle_dangerous = "<leader>cd",       -- New session or toggle (dangerous mode)
+    continue_session = "<leader>cC",       -- Continue last session
+    continue_session_dangerous = "<leader>cD", -- Continue last session dangerous
+    toggle_window = "<leader>ct",          -- Toggle window visibility
+    send_path = "<leader>cp",              -- Send file path to prompt
+    send_error = "<leader>ce",             -- Send error info to prompt
+    send_selection = "<leader>cs",         -- Send selection to prompt
+    open_prompt = "<leader>ca",            -- Open prompt builder
   },
   window = {
     position = "right",  -- right, left, bottom, top
@@ -96,8 +121,11 @@ require('claude-prompt').setup({
 
 ## Commands
 
-- `:ClaudeCode` - Toggle Claude Code terminal
-- `:ClaudeCodeDangerous` - Toggle with dangerous mode
+- `:ClaudeCode` - Start new Claude Code session
+- `:ClaudeCodeDangerous` - Start new session with dangerous mode
+- `:ClaudeCodeContinue` - Continue last Claude Code session
+- `:ClaudeCodeContinueDangerous` - Continue last session with dangerous mode
+- `:ClaudeCodeToggle` - Toggle window visibility (keep session)
 - `:ClaudePrompt` - Toggle prompt builder
 
 ## Tips
@@ -106,6 +134,14 @@ require('claude-prompt').setup({
 2. **Exit Terminal Mode**: Press `Esc Esc` to enter normal mode
 3. **Auto-reload**: Files modified by Claude Code are automatically reloaded when you return to Neovim
 4. **Project Root**: Claude Code always starts in your project root directory
+5. **Session Management**: 
+   - Only one Claude session can be active at a time
+   - `<leader>cc`/`<leader>cd` intelligently toggle window after first use
+   - Starting a new session requires uppercase variants or closing current session
+6. **Quick Workflow**:
+   - Start work: `<leader>cc`
+   - Hide/show during work: `<leader>cc` again (or `<leader>ct`)
+   - Continue from last conversation: `<leader>cC`
 
 ## License
 
