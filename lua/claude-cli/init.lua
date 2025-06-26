@@ -368,6 +368,48 @@ local function get_error_info()
 end
 
 
+-- スニペット選択ウィンドウを表示
+function M.select_snippet()
+  -- スニペットのリストを作成
+  local snippets = {}
+  local snippet_names = {}
+  for name, text in pairs(M.config.snippets) do
+    table.insert(snippet_names, name)
+    snippets[name] = text
+  end
+  
+  -- ソート
+  table.sort(snippet_names)
+  
+  -- 選択メニューを表示
+  vim.ui.select(snippet_names, {
+    prompt = 'Select snippet:',
+    format_item = function(item)
+      return item .. ": " .. string.sub(snippets[item], 1, 50) .. "..."
+    end
+  }, function(choice)
+    if choice then
+      local claude_prompt = require('claude-prompt')
+      claude_prompt.add_text(snippets[choice])
+    end
+  end)
+end
+
+-- カスタムスニペットを追加
+function M.add_snippet(name, text)
+  M.config.snippets[name] = text
+end
+
+-- スニペットを削除
+function M.remove_snippet(name)
+  M.config.snippets[name] = nil
+end
+
+-- スニペットリストを取得
+function M.get_snippets()
+  return vim.deepcopy(M.config.snippets)
+end
+
 -- セットアップ
 function M.setup(opts)
   M.config = vim.tbl_extend('force', M.config, opts or {})
