@@ -292,7 +292,7 @@ local function show_list_window(title, items, on_select)
     col = col,
     style = 'minimal',
     border = 'rounded',
-    title = ' ' .. title .. ' (j/k:選択, Enter/l:決定, d:削除, q:キャンセル) ',
+    title = ' ' .. title .. ' (j/k:選択, Enter/l:決定, d:削除, a:追加, q:キャンセル) ',
     title_pos = 'center',
   })
   
@@ -371,6 +371,16 @@ local function show_list_window(title, items, on_select)
       if items[line] then
         M.history_to_snippet(items[line])
       end
+    end, opts)
+  end
+  
+  -- 新規スニペット作成（スニペットのみ）
+  if M.state.list_type == 'snippet' then
+    vim.keymap.set('n', 'a', function()
+      -- リストウィンドウを閉じる
+      api.nvim_win_close(M.state.list_win, true)
+      -- スニペット作成
+      M.create_snippet()
     end, opts)
   end
 end

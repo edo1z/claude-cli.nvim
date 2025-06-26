@@ -88,6 +88,7 @@ In snippet/history list:
 - `Enter/l`: Select
 - `d`: Delete
 - `e`: Edit (snippets only)
+- `a`: Add new snippet (snippets list only)
 - `s`: Save to snippet (history only)
 
 ## Configuration
@@ -108,6 +109,13 @@ require('claude-cli').setup({
   window = {
     position = "right",  -- right, left, bottom, top
     size = 0.4,         -- 40% of screen
+  },
+  snippets = {
+    Refactor = "このコードをリファクタリングして、より読みやすくしてください:\n",
+    Explain = "このコードの動作を日本語で説明してください:\n",
+    FixError = "以下のエラーを修正してください:\n",
+    AddTests = "このコードに対するテストを作成してください:\n",
+    Optimize = "このコードのパフォーマンスを最適化してください:\n",
   }
 })
 
@@ -127,6 +135,47 @@ require('claude-prompt').setup({
 - `:ClaudeCodeContinueDangerous` - Continue last session with dangerous mode
 - `:ClaudeCodeToggle` - Toggle window visibility (keep session)
 - `:ClaudePrompt` - Toggle prompt builder
+
+## Snippets Management
+
+Claude CLI for Neovim includes a powerful snippet system for commonly used prompts:
+
+### Using Snippets
+
+1. **From Prompt Builder**: Press `Ctrl+l` while in the prompt builder to view and select snippets
+2. **Create New Snippet**: 
+   - From prompt builder: Press `Ctrl+c`
+   - From snippet list: Press `a`
+3. **Edit Snippets**: Press `e` on a snippet in the list
+4. **Delete Snippets**: Press `d` on a snippet in the list
+
+### Default Snippets
+
+The plugin comes with useful default snippets:
+- **Refactor**: Ask Claude to refactor code for readability
+- **Explain**: Get explanations for code in Japanese
+- **FixError**: Request error fixes
+- **AddTests**: Generate tests for code
+- **Optimize**: Optimize code performance
+
+### Custom Snippets
+
+You can add custom snippets in two ways:
+
+1. Through the configuration:
+```lua
+require('claude-cli').setup({
+  snippets = {
+    MySnippet = "My custom prompt text:\n",
+    -- Add more snippets here
+  }
+})
+```
+
+2. Programmatically:
+```lua
+require('claude-cli').add_snippet("MySnippet", "My custom prompt text:\n")
+```
 
 ## Tips
 
