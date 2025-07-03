@@ -88,4 +88,46 @@ function M.rename_window(session_name, window_name)
   return vim.v.shell_error == 0
 end
 
+-- Claude CLIを起動してセッションを作成
+---@param session_name string セッション名
+---@param options string 起動オプション（例: "-c --dangerously-skip-permissions"）
+---@param command string|nil 実行するコマンド（テスト用、nilの場合は"claude"）
+---@return boolean 成功したかどうか
+function M.create_claude_session(session_name, options, command)
+  -- セッションが既に存在する場合は削除
+  M.kill_session(session_name)
+  
+  -- コマンドを構築
+  local claude_cmd = command or "claude"
+  if options and options ~= "" then
+    claude_cmd = claude_cmd .. " " .. options
+  end
+  
+  -- tmuxセッションを作成してClaude CLIを起動
+  local create_cmd = string.format("tmux new-session -d -s %s '%s'", session_name, claude_cmd)
+  vim.fn.system(create_cmd)
+  
+  if vim.v.shell_error ~= 0 then
+    return false
+  end
+  
+  -- ウィンドウ名を設定
+  M.rename_window(session_name, "Claude CLI")
+  
+  return true
+end
+
+-- セッションを再起動
+---@param session_name string セッション名
+---@param options string 起動オプション
+---@param command string|nil 実行するコマンド（テスト用）
+---@return boolean 成功したかどうか
+function M.restart_session(session_name, options, command)
+  -- 既存のセッションを削除
+  M.kill_session(session_name)
+  
+  -- 新しいセッションを作成
+  return M.create_claude_session(session_name, options, command)
+end
+
 return M
