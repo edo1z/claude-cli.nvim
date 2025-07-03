@@ -10,6 +10,7 @@ describe("claude-manager", function()
     package.loaded["claude-manager.tmux"] = nil
     package.loaded["claude-manager.ui_list"] = nil
     package.loaded["claude-manager.ui_individual"] = nil
+    package.loaded["claude-manager.state"] = nil
     manager = require("claude-manager")
   end)
   
@@ -28,7 +29,7 @@ describe("claude-manager", function()
       manager.setup()
       
       -- デフォルト設定が適用されていることを確認
-      assert.equals(10, manager.config.max_instances)
+      assert.equals(30, manager.config.max_instances)
       assert.equals("claude", manager.config.session_prefix)
     end)
     
@@ -119,30 +120,51 @@ describe("claude-manager", function()
     end)
   end)
   
-  describe("ensure_sessions", function()
-    it("should ensure all sessions exist", function()
-      manager.setup({max_instances = 3})
+  describe("instance management", function()
+    it("should add new instance", function()
+      manager.setup()
       
-      -- セッションを確保
-      manager.ensure_sessions()
+      -- 新しいインスタンスを追加
+      local name = manager.add_instance(nil, "")
+      assert.is_not_nil(name)
+      assert.equals("claude1", name)
       
-      -- セッションが存在することを確認
-      local sessions = manager.tmux.list_sessions()
-      local found = {claude1 = false, claude2 = false, claude3 = false}
-      for _, session in ipairs(sessions) do
-        if found[session] ~= nil then
-          found[session] = true
-        end
-      end
-      
-      assert.is_true(found.claude1)
-      assert.is_true(found.claude2)
-      assert.is_true(found.claude3)
+      -- インスタンスが存在することを確認
+      local instance = manager.state.get_instance(name)
+      assert.is_not_nil(instance)
+      assert.equals(name, instance.name)
       
       -- クリーンアップ
-      vim.fn.system("tmux kill-session -t claude1 2>/dev/null")
-      vim.fn.system("tmux kill-session -t claude2 2>/dev/null")
-      vim.fn.system("tmux kill-session -t claude3 2>/dev/null")
+      manager.remove_instance(name)
+    end)
+    
+    it("should add instance with custom name", function()
+      manager.setup()
+      
+      local custom_name = "my-claude"
+      local name = manager.add_instance(custom_name, "-c")
+      assert.equals(custom_name, name)
+      
+      -- インスタンスが存在することを確認
+      local instance = manager.state.get_instance(name)
+      assert.is_not_nil(instance)
+      assert.equals("-c", instance.options)
+      
+      -- クリーンアップ
+      manager.remove_instance(name)
+    end)
+    
+    it("should remove instance", function()
+      manager.setup()
+      
+      -- インスタンスを追加
+      local name = manager.add_instance()
+      assert.is_not_nil(manager.state.get_instance(name))
+      
+      -- インスタンスを削除
+      local success = manager.remove_instance(name)
+      assert.is_true(success)
+      assert.is_nil(manager.state.get_instance(name))
     end)
   end)
 end)
