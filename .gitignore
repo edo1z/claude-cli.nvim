@@ -1,0 +1,22 @@
+# Dependencies
+.deps/
+
+# Claude files
+.claude/
+
+# Neovim generated files
+*.swp
+*.swo
+*~
+.netrwhist
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+.test_output/
+*.log
+
+# Local configuration
+.local/
