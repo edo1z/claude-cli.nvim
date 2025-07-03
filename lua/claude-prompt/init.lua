@@ -75,8 +75,8 @@ local function create_prompt_window()
     end
   end
   
-  -- ウィンドウサイズ
-  local width = math.floor(vim.o.columns * 0.7)
+  -- ウィンドウサイズ（幅を50%に縮小）
+  local width = math.floor(vim.o.columns * 0.5)
   local height = math.floor(vim.o.lines * 0.5)
   local row = math.floor((vim.o.lines - height) / 2)
   local col = math.floor((vim.o.columns - width) / 2)
@@ -204,31 +204,56 @@ function M.send_to_claude()
     -- 保存
     save_data(history_file, M.state.history)
     
-    -- Claude Code CLIプラグインの送信機能を使用
-    local claude_cli = require('claude-cli')
+    -- まずclaude-managerのアクティブインスタンスを確認
+    local has_manager, manager = pcall(require, 'claude-manager')
+    local target_job_id = nil
+    local target_win = nil
     
-    -- Claude Codeターミナルが開いていない場合は開く
-    if not claude_cli.state.term_win or not api.nvim_win_is_valid(claude_cli.state.term_win) then
-      claude_cli.toggle()
-      -- ターミナルが起動するまで少し待つ
-      vim.defer_fn(function()
-        M.send_to_claude()
-      end, 500)
-      return
+    if has_manager then
+      target_job_id = manager.get_active_job_id()
+      
+      -- マネージャーのアクティブインスタンスがある場合
+      if target_job_id then
+        -- 個別ウィンドウが開いている場合はそちらにフォーカス
+        local ui_individual = manager.ui_individual
+        if ui_individual.is_open() and ui_individual.state.window and vim.api.nvim_win_is_valid(ui_individual.state.window) then
+          target_win = ui_individual.state.window
+        end
+      end
     end
     
-    if claude_cli and claude_cli.state.term_job_id then
+    -- マネージャーにアクティブインスタンスがない場合はclaude-cliにフォールバック
+    if not target_job_id then
+      local claude_cli = require('claude-cli')
+      
+      -- Claude Codeターミナルが開いていない場合は開く
+      if not claude_cli.state.term_win or not api.nvim_win_is_valid(claude_cli.state.term_win) then
+        claude_cli.toggle()
+        -- ターミナルが起動するまで少し待つ
+        vim.defer_fn(function()
+          M.send_to_claude()
+        end, 500)
+        return
+      end
+      
+      target_job_id = claude_cli.state.term_job_id
+      target_win = claude_cli.state.term_win
+    end
+    
+    if target_job_id then
       -- ウィンドウを非表示
       M.hide_prompt()
       
-      -- Claude Codeターミナルにフォーカスを移す
-      if claude_cli.state.term_win and api.nvim_win_is_valid(claude_cli.state.term_win) then
-        api.nvim_set_current_win(claude_cli.state.term_win)
+      -- ターゲットウィンドウにフォーカスを移す
+      if target_win and api.nvim_win_is_valid(target_win) then
+        api.nvim_set_current_win(target_win)
+        -- ターミナルモードに入る
+        vim.cmd('startinsert')
       end
       
       -- 送信
       vim.defer_fn(function()
-        vim.fn.chansend(claude_cli.state.term_job_id, content)
+        vim.fn.chansend(target_job_id, content)
       end, 300)
       
       -- バッファをクリア
