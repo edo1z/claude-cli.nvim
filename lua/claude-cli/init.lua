@@ -299,7 +299,25 @@ end
 
 -- Claude Codeにテキストを送信
 local function send_to_claude(text)
-  -- Claude Codeターミナルが開いていることを確認
+  -- claude-managerのアクティブインスタンスを確認
+  local has_manager, manager = pcall(require, 'claude-manager')
+  if has_manager then
+    local manager_job_id = manager.get_active_job_id()
+    if manager_job_id then
+      -- マネージャーのアクティブインスタンスにフォーカス
+      local ui_individual = manager.ui_individual
+      if ui_individual.is_open() and ui_individual.state.window and vim.api.nvim_win_is_valid(ui_individual.state.window) then
+        vim.api.nvim_set_current_win(ui_individual.state.window)
+        -- ターミナルモードに入る
+        vim.cmd('startinsert')
+      end
+      -- テキストを送信
+      vim.fn.chansend(manager_job_id, text)
+      return
+    end
+  end
+  
+  -- Claude Codeターミナルが開いていることを確認（従来の処理）
   if not M.state.term_job_id then
     show_claude_terminal()
     -- 少し待つ
