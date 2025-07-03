@@ -15,6 +15,7 @@ https://github.com/user-attachments/assets/7a96fad4-ade7-4a7a-88b4-d7cb8a96f84a
 - 🔄 **Auto-reload Files** - Automatically updates files modified by Claude Code (built-in)
 - 🔗 **Session Continuation** - Continue from the last Claude Code session with `-c` flag
 - 👁️ **Window Toggle** - Show/hide Claude Code window without closing the session
+- 🎯 **Multi-Instance Manager** - Manage multiple Claude Code instances with tmux integration
 
 ## Requirements
 
@@ -191,6 +192,12 @@ require('claude-cli').add_snippet("MySnippet", "My custom prompt text:\n")
    - Start work: `<leader>cc`
    - Hide/show during work: `<leader>cc` again (or `<leader>ct`)
    - Continue from last conversation: `<leader>cC`
+7. **Multi-Instance Manager** (requires tmux):
+   - Show instance list: `<leader>cm` or `:ClaudeManagerToggle`
+   - Open specific instance from list: press `o` on any instance
+   - Close instance window: press `q`
+   - Navigate between instances: standard vim navigation
+   - Active instance receives `<leader>ca` messages automatically
 
 ## License
 
