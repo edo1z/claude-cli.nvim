@@ -7,10 +7,12 @@ local M = {}
 M.tmux = require("claude-manager.tmux")
 M.ui_list = require("claude-manager.ui_list")
 M.ui_individual = require("claude-manager.ui_individual")
+M.state = require("claude-manager.state")
+M.option_selector = require("claude-manager.option_selector")
 
 -- デフォルト設定
 M.config = {
-  max_instances = 10,
+  max_instances = 30,  -- 最大30インスタンス
   session_prefix = "claude",
   keymaps = {
     toggle_list = "<leader>cm",         -- マネージャー一覧の表示/非表示
@@ -31,9 +33,6 @@ function M.setup(opts)
   -- 設定をマージ
   M.config = vim.tbl_extend('force', M.config, opts or {})
   
-  -- セッション名リストを更新
-  M._update_session_list()
-  
   -- キーマッピングの設定
   M._setup_keymaps()
   
@@ -43,17 +42,6 @@ function M.setup(opts)
   M.is_setup = true
 end
 
--- セッション名リストを更新（内部関数）
-function M._update_session_list()
-  -- ui_list.luaのセッション一覧を更新
-  local sessions = {}
-  for i = 1, M.config.max_instances do
-    table.insert(sessions, string.format("%s%d", M.config.session_prefix, i))
-  end
-  
-  -- ui_list.luaのセッション一覧を更新する処理
-  -- 現在の実装では直接更新する方法がないため、今後の改善点
-end
 
 -- キーマッピングの設定（内部関数）
 function M._setup_keymaps()
@@ -85,13 +73,15 @@ function M._setup_ui_integration()
     for _, win in ipairs(M.ui_list.state.windows) do
       local buf = vim.api.nvim_win_get_buf(win)
       
-      -- oキーで個別ウィンドウを開く
+      -- oキーで個別ウィンドウを開く（ui_listでもオーバーライド）
       vim.keymap.set('n', 'o', function()
-        local session_name = vim.api.nvim_buf_get_name(vim.api.nvim_get_current_buf())
-        -- 一覧画面を閉じる
-        M.ui_list.hide()
-        -- 個別ウィンドウを開く
-        M.ui_individual.open(session_name)
+        local session_name = M.ui_list.get_current_instance_name()
+        if session_name then
+          -- 一覧画面を閉じる
+          M.ui_list.hide()
+          -- 個別ウィンドウを開く
+          M.ui_individual.open(session_name)
+        end
       end, {buffer = buf, noremap = true, silent = true})
     end
   end
@@ -102,7 +92,6 @@ function M.show_list()
   if not M.is_setup then
     M.setup()
   end
-  M.ensure_sessions()
   M.ui_list.show()
 end
 
@@ -116,7 +105,6 @@ function M.toggle_list()
   if not M.is_setup then
     M.setup()
   end
-  M.ensure_sessions()
   M.ui_list.toggle()
 end
 
@@ -132,33 +120,55 @@ end
 -- アクティブなインスタンスのjob IDを取得
 ---@return number|nil
 function M.get_active_job_id()
+  -- まずリストビューのアクティブインスタンスを確認
+  local list_job_id = M.ui_list.get_active_job_id()
+  if list_job_id then
+    return list_job_id
+  end
+  
+  -- 次に個別ウィンドウのアクティブインスタンスを確認
   return M.ui_individual.get_job_id()
 end
 
--- 全てのセッションが存在することを確保
-function M.ensure_sessions()
-  for i = 1, M.config.max_instances do
-    local session_name = string.format("%s%d", M.config.session_prefix, i)
-    M.tmux.ensure_session(session_name)
-  end
-end
 
--- 新しいインスタンスを追加（将来の拡張用）
+-- 新しいインスタンスを追加
 ---@param name string|nil カスタム名（省略時は自動採番）
+---@param options string|nil 起動オプション
 ---@return string|nil 作成されたセッション名
-function M.add_instance(name)
-  -- TODO: 実装予定
-  vim.notify("add_instance is not implemented yet", vim.log.levels.WARN)
-  return nil
+function M.add_instance(name, options)
+  if M.state.get_instance_count() >= M.config.max_instances then
+    vim.notify("Maximum number of instances reached", vim.log.levels.WARN)
+    return nil
+  end
+  
+  -- 名前が指定されていない場合は自動採番
+  if not name then
+    local next_num = M.state.get_next_available_number()
+    name = M.config.session_prefix .. next_num
+  end
+  
+  -- インスタンスを追加
+  M.state.add_instance({ name = name, options = options or "" })
+  
+  -- tmuxセッションを作成
+  M.tmux.create_claude_session(name, options or "")
+  
+  return name
 end
 
--- インスタンスを削除（将来の拡張用）
+-- インスタンスを削除
 ---@param session_name string セッション名
 ---@return boolean 成功したかどうか
 function M.remove_instance(session_name)
-  -- TODO: 実装予定
-  vim.notify("remove_instance is not implemented yet", vim.log.levels.WARN)
-  return false
+  -- tmuxセッションを削除
+  local success = M.tmux.kill_session(session_name)
+  
+  if success then
+    -- 状態から削除
+    M.state.remove_instance(session_name)
+  end
+  
+  return success
 end
 
 return M
