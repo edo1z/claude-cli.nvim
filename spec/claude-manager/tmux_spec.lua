@@ -148,4 +148,63 @@ describe("claude-manager.tmux", function()
       vim.fn.system(string.format("tmux kill-session -t %s", session_name))
     end)
   end)
+  
+  describe("create_claude_session", function()
+    it("should create session with claude command", function()
+      local session_name = "test_claude_" .. os.time()
+      
+      -- Claude CLIセッションを作成（モックコマンドを使用）
+      local result = tmux.create_claude_session(session_name, "", "echo 'Claude CLI Mock'")
+      assert.is_true(result)
+      
+      -- セッションが存在することを確認
+      local check_cmd = string.format("tmux has-session -t %s 2>/dev/null", session_name)
+      vim.fn.system(check_cmd)
+      assert.equals(0, vim.v.shell_error)
+      
+      -- クリーンアップ
+      vim.fn.system(string.format("tmux kill-session -t %s", session_name))
+    end)
+    
+    it("should create session with options", function()
+      local session_name = "test_claude_" .. os.time()
+      
+      -- オプション付きでClaude CLIセッションを作成
+      local result = tmux.create_claude_session(session_name, "-c --dangerously-skip-permissions", "echo 'Claude CLI Mock'")
+      assert.is_true(result)
+      
+      -- セッションが存在することを確認
+      local check_cmd = string.format("tmux has-session -t %s 2>/dev/null", session_name)
+      vim.fn.system(check_cmd)
+      assert.equals(0, vim.v.shell_error)
+      
+      -- クリーンアップ
+      vim.fn.system(string.format("tmux kill-session -t %s", session_name))
+    end)
+  end)
+  
+  describe("restart_session", function()
+    it("should restart existing session", function()
+      local session_name = "test_claude_" .. os.time()
+      
+      -- 初期セッションを作成（bashを起動して維持）
+      vim.fn.system(string.format("tmux new-session -d -s %s 'bash'", session_name))
+      
+      -- セッションが存在することを確認
+      local check_cmd = string.format("tmux has-session -t %s 2>/dev/null", session_name)
+      vim.fn.system(check_cmd)
+      assert.equals(0, vim.v.shell_error)
+      
+      -- セッションを再起動（モックコマンドもbashで維持）
+      local result = tmux.restart_session(session_name, "", "bash -c 'echo Restarted; exec bash'")
+      assert.is_true(result)
+      
+      -- セッションがまだ存在することを確認
+      vim.fn.system(check_cmd)
+      assert.equals(0, vim.v.shell_error)
+      
+      -- クリーンアップ
+      vim.fn.system(string.format("tmux kill-session -t %s", session_name))
+    end)
+  end)
 end)
