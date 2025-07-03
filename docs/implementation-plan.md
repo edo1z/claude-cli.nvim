@@ -33,13 +33,32 @@
 - [x] 既存の`claude-cli`との統合（`<leader>ca`連携）
 - [x] UIモジュール間の連携（oキーで個別ウィンドウを開く）
 
-### Phase 2: 拡張機能実装
+### Phase 2: 動的インスタンス管理（現在）
 
-#### 2.1 インスタンス操作機能
-- [ ] 新規インスタンスの追加
-- [ ] インスタンスの再起動
-- [ ] インスタンスの削除
+#### 2.1 基本的な動的管理
+- [ ] 初期状態を空（0個）に変更
+- [ ] 動的にインスタンスを追加する機能（`a`キー）
+- [ ] インスタンスを削除する機能（`d`キー）
+- [ ] 最大数を30個に拡張
+
+#### 2.2 起動オプション対応
+- [ ] 起動オプションの選択UI（`A`キー）
+- [ ] 通常起動、継続モード（-c）、危険モード、両方の組み合わせ
+- [ ] 各インスタンスの起動オプションを記録・表示
+- [ ] インスタンスの再起動機能（`r`キー）
+
+#### 2.3 UI/UXの改善
+- [ ] 空の状態での案内表示
+- [ ] インスタンス情報の表示（番号、状態、起動オプション）
+- [ ] ヘルプ機能の実装（`?`キー）
+- [ ] 削除時の確認ダイアログ
+
+### Phase 3: 拡張機能実装
+
+#### 3.1 インスタンス操作の高度化
 - [ ] インスタンス名の変更
+- [ ] インスタンスの並び替え
+- [ ] グループ化機能
 
 #### 2.2 セッション管理強化
 - [ ] セッション永続化
@@ -70,48 +89,48 @@
 - [ ] ユーザーマニュアルの作成
 - [ ] APIドキュメントの整備
 
-## 実装順序とタスク詳細
+## Phase 2 実装順序とタスク詳細
 
-### Step 1: tmux.lua の実装
+### Step 1: 状態管理の追加 (state.lua)
 
 ```lua
 -- 必要な機能:
--- - ensure_session(session_name) -- セッションの存在確認と作成
--- - attach_to_session(session_name, term_buf) -- セッションへのアタッチ
--- - list_sessions() -- 利用可能なセッション一覧
--- - get_session_status(session_name) -- セッションの状態取得
+-- - インスタンスの状態管理（存在、起動オプション、作成時刻）
+-- - アクティブなインスタンス一覧の管理
+-- - 次に使用可能なインスタンス番号の取得
+-- - インスタンス情報の永続化（将来用）
 ```
 
-### Step 2: ui_list.lua の実装
+### Step 2: ui_list.lua の拡張
 
 ```lua
--- 必要な機能:
--- - show() -- 一覧画面の表示
--- - hide() -- 一覧画面の非表示
--- - toggle() -- トグル操作
--- - setup_keymaps() -- キーマッピングの設定
--- - create_grid_layout(session_count) -- グリッドレイアウトの作成
+-- 追加する機能:
+-- - add_instance() -- 新規インスタンスの追加（aキー）
+-- - add_instance_with_options() -- オプション選択付き追加（Aキー）
+-- - delete_instance() -- インスタンスの削除（dキー）
+-- - restart_instance() -- インスタンスの再起動（rキー）
+-- - show_help() -- ヘルプ表示（?キー）
+-- - render_empty_state() -- 空状態の表示
+-- - render_instance_info() -- インスタンス情報の表示
 ```
 
-### Step 3: ui_individual.lua の実装
+### Step 3: tmux.lua の拡張
 
 ```lua
--- 必要な機能:
--- - open(session_name) -- 個別ウィンドウを開く
--- - close() -- 個別ウィンドウを閉じる
--- - toggle() -- トグル操作
--- - set_active(session_name) -- アクティブインスタンスの設定
--- - get_active() -- アクティブインスタンスの取得
+-- 追加する機能:
+-- - create_claude_session(name, options) -- Claude CLIを起動してセッション作成
+-- - get_session_info(name) -- セッションの詳細情報取得
+-- - restart_session(name, options) -- セッションの再起動
 ```
 
 ### Step 4: init.lua の更新
 
 ```lua
--- 必要な機能:
--- - setup(opts) -- 初期設定
--- - show_list() -- 一覧画面表示コマンド
--- - open_instance(name) -- 個別インスタンスを開く
--- - get_active_instance() -- アクティブインスタンスの取得
+-- 追加する機能:
+-- - add_instance(options) -- インスタンスの追加
+-- - remove_instance(name) -- インスタンスの削除
+-- - get_instance_list() -- アクティブなインスタンス一覧
+-- - get_instance_info(name) -- インスタンスの詳細情報
 ```
 
 ## 実装上の注意点
