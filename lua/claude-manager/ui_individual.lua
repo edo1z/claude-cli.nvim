@@ -80,9 +80,6 @@ function M.open(session_name)
   -- キーマッピングの設定
   M._setup_keymaps()
   
-  -- ターミナルモードに入る
-  vim.cmd('startinsert')
-  
   M.state.is_open = true
   M.state.active_session = session_name
 end
@@ -132,9 +129,6 @@ function M._switch_session(session_name)
   
   -- キーマッピングの設定
   M._setup_keymaps()
-  
-  -- ターミナルモードに入る
-  vim.cmd('startinsert')
   
   M.state.active_session = session_name
 end
