@@ -28,6 +28,8 @@ end
 ---@return table セッション名のリスト
 function M.list_sessions()
   local sessions = {}
+  local state = require("claude-manager.state")
+  local current_pid = state.get_current_pid()
   
   -- tmuxのセッション一覧を取得
   local list_cmd = "tmux list-sessions -F '#{session_name}' 2>/dev/null"
@@ -36,8 +38,9 @@ function M.list_sessions()
   if vim.v.shell_error == 0 and output ~= "" then
     -- 各行を処理
     for line in output:gmatch("[^\r\n]+") do
-      -- claudeで始まるセッションのみを抽出
-      if line:match("^claude%d+$") then
+      -- claude_PID_N形式のセッションを抽出（現在のPIDのもののみ）
+      local pid, num = line:match("^claude_(%d+)_(%d+)$")
+      if pid and tonumber(pid) == current_pid then
         table.insert(sessions, line)
       end
     end
@@ -45,9 +48,13 @@ function M.list_sessions()
   
   -- セッション名でソート
   table.sort(sessions, function(a, b)
-    local num_a = tonumber(a:match("claude(%d+)"))
-    local num_b = tonumber(b:match("claude(%d+)"))
-    return num_a < num_b
+    local num_a = a:match("^claude_%d+_(%d+)$")
+    local num_b = b:match("^claude_%d+_(%d+)$")
+    if num_a and num_b then
+      return tonumber(num_a) < tonumber(num_b)
+    else
+      return a < b  -- フォールバック
+    end
   end)
   
   return sessions
@@ -94,8 +101,11 @@ end
 ---@param command string|nil 実行するコマンド（テスト用、nilの場合は"claude"）
 ---@return boolean 成功したかどうか
 function M.create_claude_session(session_name, options, command)
-  -- セッションが既に存在する場合は削除
-  M.kill_session(session_name)
+  -- セッションが既に存在する場合はエラーを返す（削除しない）
+  if M.get_session_status(session_name) == "active" then
+    vim.notify(string.format("Session '%s' already exists", session_name), vim.log.levels.ERROR)
+    return false
+  end
   
   -- コマンドを構築
   local claude_cmd = command or "claude"

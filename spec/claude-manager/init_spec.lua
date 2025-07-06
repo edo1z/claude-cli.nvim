@@ -127,7 +127,11 @@ describe("claude-manager", function()
       -- 新しいインスタンスを追加
       local name = manager.add_instance(nil, "")
       assert.is_not_nil(name)
-      assert.equals("claude1", name)
+      
+      -- PIDベースの名前形式を確認
+      local pid = manager.state.get_current_pid()
+      local expected_name = string.format("claude_%d_1", pid)
+      assert.equals(expected_name, name)
       
       -- インスタンスが存在することを確認
       local instance = manager.state.get_instance(name)

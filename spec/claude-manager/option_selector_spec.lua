@@ -14,23 +14,24 @@ describe("claude-manager.option_selector", function()
     it("should have correct options", function()
       local options = option_selector.options
       
-      assert.equals(5, #options)
+      assert.equals(4, #options)
       
       -- 各オプションの確認
-      assert.equals("n", options[1].key)
+      assert.equals("c", options[1].key)
       assert.equals("", options[1].value)
+      assert.matches("Create new session", options[1].desc)
       
-      assert.equals("c", options[2].key)
+      assert.equals("C", options[2].key)
       assert.equals("-c", options[2].value)
+      assert.matches("Continue", options[2].desc)
       
-      assert.equals("C", options[3].key)
-      assert.equals("-c --dangerously-skip-permissions", options[3].value)
+      assert.equals("d", options[3].key)
+      assert.equals("--dangerously-skip-permissions", options[3].value)
+      assert.matches("Dangerous", options[3].desc)
       
-      assert.equals("d", options[4].key)
-      assert.equals("--dangerously-skip-permissions", options[4].value)
-      
-      assert.equals("D", options[5].key)
-      assert.equals("-c --dangerously-skip-permissions", options[5].value)
+      assert.equals("D", options[4].key)
+      assert.equals("-c --dangerously-skip-permissions", options[4].value)
+      assert.matches("Continue.*Dangerous", options[4].desc)
     end)
   end)
   

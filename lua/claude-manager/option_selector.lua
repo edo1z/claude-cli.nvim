@@ -5,11 +5,10 @@ local M = {}
 
 -- 利用可能なオプション
 M.options = {
-  { key = "n", value = "", desc = "No options (default)" },
-  { key = "c", value = "-c", desc = "Continue session" },
-  { key = "C", value = "-c --dangerously-skip-permissions", desc = "Continue session (dangerous)" },
-  { key = "d", value = "--dangerously-skip-permissions", desc = "Dangerous mode" },
-  { key = "D", value = "-c --dangerously-skip-permissions", desc = "Continue + Dangerous" },
+  { key = "c", value = "", desc = "Create new session (default)" },
+  { key = "C", value = "-c", desc = "Continue last session" },
+  { key = "d", value = "--dangerously-skip-permissions", desc = "Dangerous mode (skip permissions)" },
+  { key = "D", value = "-c --dangerously-skip-permissions", desc = "Continue + Dangerous mode" },
 }
 
 -- オプション選択ダイアログを表示
