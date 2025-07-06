@@ -179,6 +179,8 @@ describe("claude-manager.ui_list", function()
       -- システム関数をモック
       local original_create_session = tmux.create_claude_session
       local original_refresh = ui_list.refresh
+      local option_selector = require("claude-manager.option_selector")
+      local original_select_by_key = option_selector.select_by_key
       
       local created_session = nil
       tmux.create_claude_session = function(name, options)
@@ -188,25 +190,84 @@ describe("claude-manager.ui_list", function()
       
       ui_list.refresh = function() end
       
+      -- option_selectorをモック（デフォルトオプションを選択）
+      option_selector.select_by_key = function(callback)
+        callback("") -- デフォルトオプションを選択
+      end
+      
+      -- PIDをモック
+      local original_get_pid = state.get_current_pid
+      state.get_current_pid = function() return 12345 end
+      
       -- インスタンスを追加
       ui_list.add_instance()
       
       -- 確認
       assert.equals(1, state.get_instance_count())
       local instances = state.get_instances()
-      assert.equals("claude1", instances[1].name)
+      assert.equals("claude_12345_1", instances[1].name)
       assert.equals("", instances[1].options)
       
       assert.is_not_nil(created_session)
-      assert.equals("claude1", created_session.name)
+      assert.equals("claude_12345_1", created_session.name)
       assert.equals("", created_session.options)
       
       -- 元に戻す
       tmux.create_claude_session = original_create_session
       ui_list.refresh = original_refresh
+      option_selector.select_by_key = original_select_by_key
+      state.get_current_pid = original_get_pid
     end)
   end)
   
+  describe("delete_instance", function()
+    it("should delete only the current instance", function()
+      -- 2つのインスタンスを追加
+      state.add_instance({ name = "claude_12345_1", options = "" })
+      state.add_instance({ name = "claude_12345_2", options = "" })
+      
+      assert.equals(2, state.get_instance_count())
+      
+      -- 削除機能をモック
+      local original_kill_session = tmux.kill_session
+      local original_refresh = ui_list.refresh
+      local original_get_name = ui_list.get_current_instance_name
+      
+      local killed_sessions = {}
+      tmux.kill_session = function(name)
+        table.insert(killed_sessions, name)
+      end
+      
+      ui_list.refresh = function() end
+      ui_list.get_current_instance_name = function()
+        return "claude_12345_1"  -- 最初のインスタンスを削除対象にする
+      end
+      
+      -- vim.ui.selectをモック（Yes選択）
+      local original_select = vim.ui.select
+      vim.ui.select = function(options, config, callback)
+        callback("Yes")
+      end
+      
+      -- 削除実行
+      ui_list.delete_current_instance()
+      
+      -- 1つだけ削除されたことを確認
+      assert.equals(1, #killed_sessions)
+      assert.equals("claude_12345_1", killed_sessions[1])
+      assert.equals(1, state.get_instance_count())
+      
+      local remaining = state.get_instances()
+      assert.equals("claude_12345_2", remaining[1].name)
+      
+      -- 元に戻す
+      tmux.kill_session = original_kill_session
+      ui_list.refresh = original_refresh
+      ui_list.get_current_instance_name = original_get_name
+      vim.ui.select = original_select
+    end)
+  end)
+
   describe("active instance management", function()
     it("should set and get active instance", function()
       -- アクティブインスタンスを設定
