@@ -172,6 +172,9 @@ function M.hide()
     return
   end
   
+  -- 古いキーマッピングをクリア
+  M.clear_keymaps()
+  
   -- リストタブを閉じる
   if M.state.list_tab then
     local current_tab = vim.fn.tabpagenr()
@@ -221,7 +224,6 @@ function M.setup_empty_state(window_id)
       "Claude Manager - No instances",
       "",
       "Press 'a' to add a new instance",
-      "Press 'A' to add with custom name",
       "Press 'q' to quit",
       "Press '?' for help"
     }
@@ -236,8 +238,29 @@ function M.setup_empty_state(window_id)
   end)
 end
 
+-- 古いキーマッピングをクリア
+function M.clear_keymaps()
+  if M.state.buffers then
+    for _, buf in pairs(M.state.buffers) do
+      if vim.api.nvim_buf_is_valid(buf) then
+        -- バッファの全キーマッピングをクリア
+        pcall(vim.keymap.del, 't', '<C-q>', {buffer = buf})
+        pcall(vim.keymap.del, 'n', 'a', {buffer = buf})
+        pcall(vim.keymap.del, 'n', 'd', {buffer = buf})
+        pcall(vim.keymap.del, 'n', 'o', {buffer = buf})
+        pcall(vim.keymap.del, 'n', 'r', {buffer = buf})
+        pcall(vim.keymap.del, 'n', 'q', {buffer = buf})
+        pcall(vim.keymap.del, 'n', '?', {buffer = buf})
+      end
+    end
+  end
+end
+
 -- キーマッピングの設定
 function M.setup_keymaps()
+  -- 古いキーマッピングをクリア
+  M.clear_keymaps()
+  
   -- 各ウィンドウにキーマッピングを設定
   for _, win in ipairs(M.state.windows) do
     local buf = vim.api.nvim_win_get_buf(win)
@@ -250,10 +273,6 @@ function M.setup_keymaps()
       M.add_instance()
     end, {buffer = buf, noremap = true, silent = true})
     
-    -- 新しいインスタンスを追加（カスタム名）
-    vim.keymap.set('n', 'A', function()
-      M.add_instance_with_name()
-    end, {buffer = buf, noremap = true, silent = true})
     
     -- インスタンスを削除
     vim.keymap.set('n', 'd', function()
@@ -289,13 +308,23 @@ end
 -- 現在のインスタンス名を取得
 ---@return string|nil インスタンス名
 function M.get_current_instance_name()
-  local buf_name = vim.api.nvim_buf_get_name(vim.api.nvim_get_current_buf())
-  -- バッファ名からインスタンス名を抽出
+  local current_buf = vim.api.nvim_get_current_buf()
+  
+  -- 現在のバッファが記録されているバッファリストと一致するかチェック
+  for session_name, buf in pairs(M.state.buffers) do
+    if buf == current_buf then
+      return session_name
+    end
+  end
+  
+  -- フォールバック：バッファ名からインスタンス名を抽出
+  local buf_name = vim.api.nvim_buf_get_name(current_buf)
   for name, _ in pairs(state.instances) do
     if buf_name:match(name) then
       return name
     end
   end
+  
   return nil
 end
 
@@ -328,60 +357,6 @@ function M.add_instance()
   end)
 end
 
--- カスタムラベル付きでインスタンスを追加
-function M.add_instance_with_name()
-  if state.get_instance_count() >= 30 then
-    vim.notify("Maximum number of instances (30) reached", vim.log.levels.WARN)
-    return
-  end
-  
-  -- ラベルを入力（PIDベースの名前は固定）
-  vim.ui.input({
-    prompt = "Enter label (optional): ",
-    default = "",
-  }, function(label)
-    -- キャンセルされた場合は何もしない
-    if label == nil then
-      return
-    end
-    
-    -- ベース名を生成（PIDと番号は固定）
-    local pid = state.get_current_pid()
-    local next_num = state.get_next_available_number()
-    local name
-    
-    if label and label ~= "" then
-      -- ラベルがある場合は末尾に追加
-      name = string.format("claude_%d_%d_%s", pid, next_num, label)
-    else
-      -- ラベルがない場合は通常の名前
-      name = string.format("claude_%d_%d", pid, next_num)
-    end
-    
-    -- 既存のインスタンス名を確認
-    if state.get_instance(name) then
-      vim.notify("Instance '" .. name .. "' already exists", vim.log.levels.WARN)
-      return
-    end
-    
-    -- オプションを選択
-    option_selector.select_by_key(function(options)
-      if options == nil then
-        -- キャンセルされた
-        return
-      end
-      
-      -- インスタンスを追加
-      state.add_instance({ name = name, options = options })
-      
-      -- tmuxセッションを作成
-      tmux.create_claude_session(name, options)
-      
-      -- 画面を再描画
-      M.refresh()
-    end)
-  end)
-end
 
 -- 現在のインスタンスを削除
 function M.delete_current_instance()
@@ -428,7 +403,6 @@ function M.show_help()
     "",
     "Key bindings:",
     "  a     - Add new instance (auto-numbered)",
-    "  A     - Add new instance (custom name)",
     "  d     - Delete current instance",
     "  o     - Open individual window",
     "  r     - Restart current instance",
