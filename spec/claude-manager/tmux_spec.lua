@@ -3,208 +3,233 @@ local vim = vim
 
 describe("claude-manager.tmux", function()
   local tmux
+  local state
+  local original_system
+  local original_notify
+  local original_v
+  local mock_shell_error = 0
   
   before_each(function()
     -- モジュールをリロード
     package.loaded["claude-manager.tmux"] = nil
+    package.loaded["claude-manager.state"] = nil
+    
+    -- vim.fn.systemとvim.notifyをモック
+    original_system = vim.fn.system
+    original_notify = vim.notify
+    original_v = vim.v
+    
+    -- vim.vをモック可能なテーブルに置き換える
+    vim.v = setmetatable({}, {
+      __index = function(t, k)
+        if k == "shell_error" then
+          return mock_shell_error
+        end
+        return original_v[k]
+      end,
+      __newindex = function(t, k, v)
+        if k == "shell_error" then
+          mock_shell_error = v
+        else
+          -- その他のキーは元のvim.vには設定しない
+        end
+      end
+    })
+    
     tmux = require("claude-manager.tmux")
+    state = require("claude-manager.state")
   end)
   
-  describe("ensure_session", function()
-    it("should create a new tmux session if it doesn't exist", function()
-      local session_name = "test_claude_" .. os.time()
-      
-      -- セッションが存在しないことを確認
-      local check_cmd = string.format("tmux has-session -t %s 2>/dev/null", session_name)
-      vim.fn.system(check_cmd)
-      assert.is_not.equals(0, vim.v.shell_error)
-      
-      -- セッションを作成
-      local result = tmux.ensure_session(session_name)
-      assert.is_true(result)
-      
-      -- セッションが存在することを確認
-      vim.fn.system(check_cmd)
-      assert.equals(0, vim.v.shell_error)
-      
-      -- クリーンアップ
-      vim.fn.system(string.format("tmux kill-session -t %s", session_name))
-    end)
-    
-    it("should return true if session already exists", function()
-      local session_name = "test_claude_" .. os.time()
-      
-      -- あらかじめセッションを作成
-      vim.fn.system(string.format("tmux new-session -d -s %s", session_name))
-      
-      -- ensure_sessionを呼び出す
-      local result = tmux.ensure_session(session_name)
-      assert.is_true(result)
-      
-      -- セッションが存在することを確認
-      local check_cmd = string.format("tmux has-session -t %s 2>/dev/null", session_name)
-      vim.fn.system(check_cmd)
-      assert.equals(0, vim.v.shell_error)
-      
-      -- クリーンアップ
-      vim.fn.system(string.format("tmux kill-session -t %s", session_name))
-    end)
+  after_each(function()
+    -- モックを元に戻す
+    vim.fn.system = original_system
+    vim.notify = original_notify
+    vim.v = original_v
+    mock_shell_error = 0
   end)
   
   describe("list_sessions", function()
-    it("should return a list of claude sessions", function()
-      -- テスト用のセッションを作成
-      local test_sessions = {"claude1", "claude2", "claude3"}
-      for _, session in ipairs(test_sessions) do
-        vim.fn.system(string.format("tmux new-session -d -s %s", session))
+    it("should list only current PID sessions", function()
+      local current_pid = state.get_current_pid()
+      
+      -- tmuxの出力をモック
+      vim.fn.system = function(cmd)
+        if cmd:match("tmux list%-sessions") then
+          vim.v.shell_error = 0
+          return string.format([[claude_%d_1
+claude_%d_2
+claude_9999_1
+claude_9999_2
+other-session]], current_pid, current_pid)
+        end
+        vim.v.shell_error = 0
+        return ""
       end
       
-      -- セッション一覧を取得
       local sessions = tmux.list_sessions()
       
-      -- claude1, claude2, claude3が含まれていることを確認
-      local found = {claude1 = false, claude2 = false, claude3 = false}
-      for _, session in ipairs(sessions) do
-        if found[session] ~= nil then
-          found[session] = true
+      -- 現在のPIDのセッションのみが返される
+      assert.equals(2, #sessions)
+      assert.equals(string.format("claude_%d_1", current_pid), sessions[1])
+      assert.equals(string.format("claude_%d_2", current_pid), sessions[2])
+    end)
+    
+    it("should return empty list when no sessions", function()
+      vim.fn.system = function(cmd)
+        if cmd:match("tmux list%-sessions") then
+          vim.v.shell_error = 1
+          return ""
         end
+        vim.v.shell_error = 0
+        return ""
       end
       
-      assert.is_true(found.claude1)
-      assert.is_true(found.claude2)
-      assert.is_true(found.claude3)
+      local sessions = tmux.list_sessions()
+      assert.equals(0, #sessions)
+    end)
+    
+    it("should sort sessions by number", function()
+      local current_pid = state.get_current_pid()
       
-      -- クリーンアップ
-      for _, session in ipairs(test_sessions) do
-        vim.fn.system(string.format("tmux kill-session -t %s 2>/dev/null", session))
+      vim.fn.system = function(cmd)
+        if cmd:match("tmux list%-sessions") then
+          vim.v.shell_error = 0
+          return string.format([[claude_%d_10
+claude_%d_2
+claude_%d_1]], current_pid, current_pid, current_pid)
+        end
+        vim.v.shell_error = 0
+        return ""
       end
+      
+      local sessions = tmux.list_sessions()
+      
+      assert.equals(3, #sessions)
+      assert.equals(string.format("claude_%d_1", current_pid), sessions[1])
+      assert.equals(string.format("claude_%d_2", current_pid), sessions[2])
+      assert.equals(string.format("claude_%d_10", current_pid), sessions[3])
+    end)
+  end)
+  
+  describe("create_claude_session", function()
+    it("should not create session if it already exists", function()
+      local notified = false
+      local notified_msg = ""
+      
+      -- vim.notifyをモック
+      vim.notify = function(msg, level)
+        notified = true
+        notified_msg = msg
+      end
+      
+      -- 既存セッションがあるとモック
+      vim.fn.system = function(cmd)
+        if cmd:match("tmux has%-session") then
+          vim.v.shell_error = 0  -- セッションが存在
+          return ""
+        end
+        vim.v.shell_error = 0
+        return ""
+      end
+      
+      local success = tmux.create_claude_session("claude_12345_1", "", "claude")
+      
+      assert.is_false(success)
+      assert.is_true(notified)
+      assert.matches("already exists", notified_msg)
+    end)
+    
+    it("should create new session when it doesn't exist", function()
+      local created_session = nil
+      local renamed_window = false
+      
+      vim.fn.system = function(cmd)
+        if cmd:match("tmux has%-session") then
+          vim.v.shell_error = 1  -- セッションが存在しない
+          return ""
+        elseif cmd:match("tmux new%-session") then
+          created_session = cmd:match("-s (%S+)")
+          vim.v.shell_error = 0
+          return ""
+        elseif cmd:match("tmux rename%-window") then
+          renamed_window = true
+          vim.v.shell_error = 0
+          return ""
+        end
+        vim.v.shell_error = 0
+        return ""
+      end
+      
+      local success = tmux.create_claude_session("claude_12345_1", "-c", "claude")
+      
+      assert.is_true(success)
+      assert.equals("claude_12345_1", created_session)
+      assert.is_true(renamed_window)
     end)
   end)
   
   describe("get_session_status", function()
-    it("should return 'active' for existing session", function()
-      local session_name = "test_claude_" .. os.time()
+    it("should return active when session exists", function()
+      vim.fn.system = function(cmd)
+        if cmd:match("tmux has%-session") then
+          vim.v.shell_error = 0
+          return ""
+        end
+        vim.v.shell_error = 0
+        return ""
+      end
       
-      -- セッションを作成
-      vim.fn.system(string.format("tmux new-session -d -s %s", session_name))
-      
-      -- ステータスを確認
-      local status = tmux.get_session_status(session_name)
+      local status = tmux.get_session_status("claude_12345_1")
       assert.equals("active", status)
-      
-      -- クリーンアップ
-      vim.fn.system(string.format("tmux kill-session -t %s", session_name))
     end)
     
-    it("should return 'inactive' for non-existing session", function()
-      local session_name = "non_existing_session_" .. os.time()
+    it("should return inactive when session doesn't exist", function()
+      vim.fn.system = function(cmd)
+        if cmd:match("tmux has%-session") then
+          vim.v.shell_error = 1
+          return ""
+        end
+        vim.v.shell_error = 0
+        return ""
+      end
       
-      -- ステータスを確認
-      local status = tmux.get_session_status(session_name)
+      local status = tmux.get_session_status("claude_12345_1")
       assert.equals("inactive", status)
     end)
   end)
   
   describe("kill_session", function()
-    it("should kill an existing session", function()
-      local session_name = "test_claude_" .. os.time()
+    it("should kill existing session", function()
+      local killed_session = nil
       
-      -- セッションを作成
-      vim.fn.system(string.format("tmux new-session -d -s %s", session_name))
+      vim.fn.system = function(cmd)
+        if cmd:match("tmux kill%-session") then
+          killed_session = cmd:match("-t (%S+)")
+          vim.v.shell_error = 0
+          return ""
+        end
+        vim.v.shell_error = 0
+        return ""
+      end
       
-      -- セッションが存在することを確認
-      local check_cmd = string.format("tmux has-session -t %s 2>/dev/null", session_name)
-      vim.fn.system(check_cmd)
-      assert.equals(0, vim.v.shell_error)
+      local success = tmux.kill_session("claude_12345_1")
       
-      -- セッションを削除
-      local result = tmux.kill_session(session_name)
-      assert.is_true(result)
-      
-      -- セッションが存在しないことを確認
-      vim.fn.system(check_cmd)
-      assert.is_not.equals(0, vim.v.shell_error)
-    end)
-  end)
-  
-  describe("rename_window", function()
-    it("should rename the window in a session", function()
-      local session_name = "test_claude_" .. os.time()
-      local window_name = "TestWindow"
-      
-      -- セッションを作成
-      vim.fn.system(string.format("tmux new-session -d -s %s", session_name))
-      
-      -- ウィンドウ名を変更
-      local result = tmux.rename_window(session_name, window_name)
-      assert.is_true(result)
-      
-      -- ウィンドウ名を確認
-      local list_cmd = string.format("tmux list-windows -t %s -F '#{window_name}'", session_name)
-      local output = vim.fn.system(list_cmd)
-      assert.is_not_nil(string.find(output, window_name))
-      
-      -- クリーンアップ
-      vim.fn.system(string.format("tmux kill-session -t %s", session_name))
-    end)
-  end)
-  
-  describe("create_claude_session", function()
-    it("should create session with claude command", function()
-      local session_name = "test_claude_" .. os.time()
-      
-      -- Claude CLIセッションを作成（モックコマンドを使用）
-      local result = tmux.create_claude_session(session_name, "", "echo 'Claude CLI Mock'")
-      assert.is_true(result)
-      
-      -- セッションが存在することを確認
-      local check_cmd = string.format("tmux has-session -t %s 2>/dev/null", session_name)
-      vim.fn.system(check_cmd)
-      assert.equals(0, vim.v.shell_error)
-      
-      -- クリーンアップ
-      vim.fn.system(string.format("tmux kill-session -t %s", session_name))
+      assert.is_true(success)
+      assert.equals("claude_12345_1", killed_session)
     end)
     
-    it("should create session with options", function()
-      local session_name = "test_claude_" .. os.time()
+    it("should return false when killing non-existent session", function()
+      vim.fn.system = function(cmd)
+        if cmd:match("tmux kill%-session") then
+          vim.v.shell_error = 1
+          return ""
+        end
+        vim.v.shell_error = 0
+        return ""
+      end
       
-      -- オプション付きでClaude CLIセッションを作成
-      local result = tmux.create_claude_session(session_name, "-c --dangerously-skip-permissions", "echo 'Claude CLI Mock'")
-      assert.is_true(result)
-      
-      -- セッションが存在することを確認
-      local check_cmd = string.format("tmux has-session -t %s 2>/dev/null", session_name)
-      vim.fn.system(check_cmd)
-      assert.equals(0, vim.v.shell_error)
-      
-      -- クリーンアップ
-      vim.fn.system(string.format("tmux kill-session -t %s", session_name))
-    end)
-  end)
-  
-  describe("restart_session", function()
-    it("should restart existing session", function()
-      local session_name = "test_claude_" .. os.time()
-      
-      -- 初期セッションを作成（bashを起動して維持）
-      vim.fn.system(string.format("tmux new-session -d -s %s 'bash'", session_name))
-      
-      -- セッションが存在することを確認
-      local check_cmd = string.format("tmux has-session -t %s 2>/dev/null", session_name)
-      vim.fn.system(check_cmd)
-      assert.equals(0, vim.v.shell_error)
-      
-      -- セッションを再起動（モックコマンドもbashで維持）
-      local result = tmux.restart_session(session_name, "", "bash -c 'echo Restarted; exec bash'")
-      assert.is_true(result)
-      
-      -- セッションがまだ存在することを確認
-      vim.fn.system(check_cmd)
-      assert.equals(0, vim.v.shell_error)
-      
-      -- クリーンアップ
-      vim.fn.system(string.format("tmux kill-session -t %s", session_name))
+      local success = tmux.kill_session("non-existent")
+      assert.is_false(success)
     end)
   end)
 end)

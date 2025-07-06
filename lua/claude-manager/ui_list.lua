@@ -313,8 +313,9 @@ function M.add_instance()
       return
     end
     
+    local pid = state.get_current_pid()
     local next_num = state.get_next_available_number()
-    local name = "claude" .. next_num
+    local name = string.format("claude_%d_%d", pid, next_num)
     
     -- インスタンスを追加
     state.add_instance({ name = name, options = options })
@@ -337,7 +338,7 @@ function M.add_instance_with_name()
   -- 名前を入力
   vim.ui.input({
     prompt = "Enter instance name: ",
-    default = "claude" .. state.get_next_available_number(),
+    default = string.format("claude_%d_%d", state.get_current_pid(), state.get_next_available_number()),
   }, function(name)
     if not name or name == "" then
       return

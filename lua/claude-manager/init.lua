@@ -141,10 +141,11 @@ function M.add_instance(name, options)
     return nil
   end
   
-  -- 名前が指定されていない場合は自動採番
+  -- 名前が指定されていない場合は自動採番（PIDベース）
   if not name then
+    local pid = M.state.get_current_pid()
     local next_num = M.state.get_next_available_number()
-    name = M.config.session_prefix .. next_num
+    name = string.format("%s_%d_%d", M.config.session_prefix, pid, next_num)
   end
   
   -- インスタンスを追加
