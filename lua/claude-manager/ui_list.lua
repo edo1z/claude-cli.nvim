@@ -328,20 +328,34 @@ function M.add_instance()
   end)
 end
 
--- カスタム名でインスタンスを追加
+-- カスタムラベル付きでインスタンスを追加
 function M.add_instance_with_name()
   if state.get_instance_count() >= 30 then
     vim.notify("Maximum number of instances (30) reached", vim.log.levels.WARN)
     return
   end
   
-  -- 名前を入力
+  -- ラベルを入力（PIDベースの名前は固定）
   vim.ui.input({
-    prompt = "Enter instance name: ",
-    default = string.format("claude_%d_%d", state.get_current_pid(), state.get_next_available_number()),
-  }, function(name)
-    if not name or name == "" then
+    prompt = "Enter label (optional): ",
+    default = "",
+  }, function(label)
+    -- キャンセルされた場合は何もしない
+    if label == nil then
       return
+    end
+    
+    -- ベース名を生成（PIDと番号は固定）
+    local pid = state.get_current_pid()
+    local next_num = state.get_next_available_number()
+    local name
+    
+    if label and label ~= "" then
+      -- ラベルがある場合は末尾に追加
+      name = string.format("claude_%d_%d_%s", pid, next_num, label)
+    else
+      -- ラベルがない場合は通常の名前
+      name = string.format("claude_%d_%d", pid, next_num)
     end
     
     -- 既存のインスタンス名を確認
