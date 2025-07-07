@@ -26,7 +26,7 @@ M.config = {
     toggle_dangerous = "<leader>cd", -- Claude Code表示/非表示（権限スキップ）
     continue_session = "<leader>cC",  -- セッション継続（-cオプション付き）
     continue_session_dangerous = "<leader>cD", -- セッション継続（危険モード）
-    toggle_window = "<leader>ct",   -- ウィンドウの表示/非表示切り替え
+    -- toggle_window = "<leader>ct",   -- ウィンドウの表示/非表示切り替え（削除）
     send_path = "<leader>cp",      -- ファイルパス送信
     send_error = "<leader>ce",     -- エラー送信  
     send_selection = "<leader>cs", -- 選択範囲送信
@@ -433,6 +433,14 @@ function M.setup(opts)
   M.config = vim.tbl_extend('force', M.config, opts or {})
   M.is_setup = true
   
+  -- マネージャーのセットアップ（manager設定があれば渡す）
+  local manager = require('claude-manager')
+  local manager_opts = {}
+  if opts and opts.manager then
+    manager_opts = opts.manager
+  end
+  manager.setup(manager_opts)
+  
   local keymaps = M.config.keymaps
   
   -- トグル（新規セッション）
@@ -481,11 +489,11 @@ function M.setup(opts)
     end, {desc = 'Claude Code: Continue last session (dangerous mode)'})
   end
   
-  -- ウィンドウトグル
-  if keymaps.toggle_window then
-    vim.keymap.set('n', keymaps.toggle_window, M.toggle_window,
-      {desc = 'Claude Code: Toggle window visibility'})
-  end
+  -- ウィンドウトグル（削除：個別ウィンドウは直接:qで閉じる）
+  -- if keymaps.toggle_window then
+  --   vim.keymap.set('n', keymaps.toggle_window, M.toggle_window,
+  --     {desc = 'Claude Code: Toggle window visibility'})
+  -- end
   
   -- ファイルパス送信（プロンプトウィンドウへ）
   if keymaps.send_path then

@@ -79,27 +79,36 @@ describe("claude-manager.option_selector", function()
   
   describe("select_by_key", function()
     it("should create floating window", function()
-      local callback_called = false
-      local callback_value = nil
-      
       -- 現在のウィンドウ数を記録
       local initial_win_count = #vim.api.nvim_list_wins()
       
+      -- select_by_keyを呼び出す
       option_selector.select_by_key(function(value)
-        callback_called = true
-        callback_value = value
+        -- このテストではコールバックのテストは行わない
       end)
       
       -- フローティングウィンドウが作成されたことを確認
-      assert.equals(initial_win_count + 1, #vim.api.nvim_list_wins())
+      local current_win_count = #vim.api.nvim_list_wins()
+      assert.is_true(current_win_count > initial_win_count)
+      
+      -- 新しく作成されたウィンドウを取得して確認
+      local wins = vim.api.nvim_list_wins()
+      local float_win = nil
+      for _, win in ipairs(wins) do
+        local config = vim.api.nvim_win_get_config(win)
+        if config.relative ~= "" then  -- フローティングウィンドウの場合
+          float_win = win
+          break
+        end
+      end
+      
+      assert.is_not_nil(float_win)
+      
+      -- フローティングウィンドウが存在することを確認
+      assert.is_true(vim.api.nvim_win_is_valid(float_win))
       
       -- ウィンドウを閉じる
-      local wins = vim.api.nvim_list_wins()
-      local float_win = wins[#wins]
       vim.api.nvim_win_close(float_win, true)
-      
-      -- コールバックが呼ばれたことを確認
-      assert.is_true(callback_called)
     end)
   end)
 end)

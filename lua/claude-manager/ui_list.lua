@@ -18,6 +18,27 @@ M.state = {
 -- アクティブなインスタンス名
 M.active_instance = nil
 
+-- 設定
+M.config = {
+  active_bg_color = "#2a2a3e",  -- アクティブインスタンスの背景色
+  inactive_bg_color = nil,       -- 非アクティブインスタンスの背景色（nilの場合は通常の背景色）
+}
+
+-- ハイライトグループの設定
+function M.setup_highlights()
+  if M.config.active_bg_color then
+    vim.api.nvim_set_hl(0, 'ClaudeManagerActive', {
+      bg = M.config.active_bg_color
+    })
+  end
+  
+  if M.config.inactive_bg_color then
+    vim.api.nvim_set_hl(0, 'ClaudeManagerInactive', {
+      bg = M.config.inactive_bg_color
+    })
+  end
+end
+
 -- グリッドレイアウトを計算
 ---@param session_count number セッション数
 ---@return number rows 行数
@@ -109,7 +130,7 @@ local function setup_session_in_window(session_name, window_id)
       
       -- バッファ設定
       vim.bo[buf].buflisted = false
-      vim.bo[buf].bufhidden = 'hide'
+      vim.bo[buf].bufhidden = 'hide' -- セッションは維持する必要があるのでhide
       
       -- バッファを記録
       M.state.buffers[session_name] = buf
@@ -122,6 +143,15 @@ local function setup_session_in_window(session_name, window_id)
   vim.wo[window_id].signcolumn = "no"
   vim.wo[window_id].foldcolumn = "0"
   vim.wo[window_id].statusline = session_name
+  
+  -- アクティブインスタンスのハイライト設定
+  if session_name == M.active_instance then
+    vim.wo[window_id].winhighlight = 'Normal:ClaudeManagerActive'
+  else
+    if M.config.inactive_bg_color then
+      vim.wo[window_id].winhighlight = 'Normal:ClaudeManagerInactive'
+    end
+  end
 end
 
 -- 一覧画面を表示
@@ -129,6 +159,9 @@ function M.show()
   if M.state.is_open then
     return
   end
+  
+  -- ハイライトグループを設定
+  M.setup_highlights()
   
   -- 現在のタブを記録
   M.state.original_tab = vim.fn.tabpagenr()
@@ -177,18 +210,40 @@ function M.hide()
   
   -- リストタブを閉じる
   if M.state.list_tab then
-    local current_tab = vim.fn.tabpagenr()
-    vim.cmd('tabclose ' .. M.state.list_tab)
-    
-    -- 元のタブに戻る
-    if M.state.original_tab and M.state.original_tab <= vim.fn.tabpagenr("$") then
-      vim.cmd('tabnext ' .. M.state.original_tab)
+    -- タブが複数ある場合のみ閉じる
+    if vim.fn.tabpagenr("$") > 1 then
+      local current_tab = vim.fn.tabpagenr()
+      
+      -- 元のタブに先に戻る
+      if M.state.original_tab and M.state.original_tab <= vim.fn.tabpagenr("$") 
+          and M.state.original_tab ~= M.state.list_tab then
+        vim.cmd('tabnext ' .. M.state.original_tab)
+      end
+      
+      -- リストタブを閉じる
+      vim.cmd('tabclose ' .. M.state.list_tab)
+    else
+      -- 最後のタブの場合は、ウィンドウのみを閉じる
+      for _, win in pairs(M.state.windows) do
+        if vim.api.nvim_win_is_valid(win) then
+          vim.api.nvim_win_close(win, true)
+        end
+      end
+    end
+  end
+  
+  -- バッファをクリーンアップ
+  for session_name, buf in pairs(M.state.buffers) do
+    if vim.api.nvim_buf_is_valid(buf) then
+      -- バッファを削除（ターミナルジョブが実行中の場合は強制削除）
+      pcall(vim.api.nvim_buf_delete, buf, {force = true})
     end
   end
   
   M.state.is_open = false
   M.state.list_tab = nil
   M.state.windows = {}
+  M.state.buffers = {}
 end
 
 -- トグル操作
@@ -451,10 +506,33 @@ function M.get_active_job_id()
   return nil
 end
 
+-- アクティブインスタンスのハイライトを更新
+function M.update_active_highlight()
+  if not M.state.is_open then
+    return
+  end
+  
+  for session_name, buf in pairs(M.state.buffers) do
+    local wins = vim.fn.win_findbuf(buf)
+    for _, win in ipairs(wins) do
+      if session_name == M.active_instance then
+        vim.wo[win].winhighlight = 'Normal:ClaudeManagerActive'
+      else
+        if M.config.inactive_bg_color then
+          vim.wo[win].winhighlight = 'Normal:ClaudeManagerInactive'
+        else
+          vim.wo[win].winhighlight = ''
+        end
+      end
+    end
+  end
+end
+
 -- アクティブなインスタンスを設定
 ---@param name string インスタンス名
 function M.set_active_instance(name)
   M.active_instance = name
+  M.update_active_highlight()
 end
 
 return M

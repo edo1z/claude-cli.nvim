@@ -2,6 +2,8 @@
 
 Seamlessly integrate Claude Code CLI into your Neovim workflow with multi-instance management.
 
+*Read this in other languages: [日本語](README.ja.md)*
+
 https://github.com/user-attachments/assets/7a96fad4-ade7-4a7a-88b4-d7cb8a96f84a
 
 ## Features
@@ -11,7 +13,6 @@ https://github.com/user-attachments/assets/7a96fad4-ade7-4a7a-88b4-d7cb8a96f84a
 - 🔍 **Context Awareness** - Send file paths, errors, and code selections
 - ⚡ **Quick Actions** - Fast keybindings for common tasks
 - 💾 **Persistent Storage** - Save snippets and command history
-- 🚀 **Dangerous Mode** - Skip permissions when needed
 - 🔄 **Auto-reload Files** - Automatically updates files modified by Claude Code
 - 🔗 **Session Continuation** - Continue from the last Claude Code session
 - 🎯 **Multi-Instance Manager** - Manage up to 30 Claude Code instances simultaneously
@@ -49,12 +50,12 @@ use 'edo1z/claude-cli.nvim'
 
 ## Quick Start
 
-### Single Instance Mode
-1. Start Claude Code: `<leader>cc` (or `<leader>cd` for dangerous mode)
-2. Toggle window visibility: `<leader>cc` again
-3. Continue from last session: `<leader>cC`
+### Basic Usage
+1. Start new Claude Code session: `<leader>cc` (or `<leader>cd` for dangerous mode)
+2. Continue from last session: `<leader>cC` (or `<leader>cD` for dangerous mode)
+3. Open instance manager: `<leader>cm`
 
-### Multi-Instance Manager (New!)
+### Multi-Instance Manager
 1. Open instance manager: `<leader>cm`
 2. Add new instance: press `a` in the list view
 3. Open specific instance: press `o` on any instance
@@ -110,12 +111,11 @@ The prompt builder (`<leader>ca`) provides powerful prompt composition:
 ```lua
 require('claude-cli').setup({
   keymaps = {
-    -- Single instance mode
+    -- Basic keymaps
     toggle = "<leader>cc",
     toggle_dangerous = "<leader>cd",
     continue_session = "<leader>cC",
     continue_session_dangerous = "<leader>cD",
-    toggle_window = "<leader>ct",
     
     -- Context actions
     send_path = "<leader>cp",
@@ -143,11 +143,10 @@ require('claude-cli').setup({
 
 ## Commands
 
-### Single Instance
+### Basic Commands
 - `:ClaudeCode` - Start new Claude Code session
 - `:ClaudeCodeDangerous` - Start with dangerous mode
 - `:ClaudeCodeContinue` - Continue last session
-- `:ClaudeCodeToggle` - Toggle window visibility
 - `:ClaudePrompt` - Open prompt builder
 
 ### Multi-Instance Manager

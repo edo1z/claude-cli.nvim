@@ -53,12 +53,43 @@ describe("claude-prompt integration with manager", function()
       local original_chansend = vim.fn.chansend
       local sent_data = nil
       local sent_job_id = nil
+      local deferred_callbacks = {}
+      
+      -- defer_fnをモック
+      local original_defer_fn = vim.defer_fn
+      vim.defer_fn = function(callback, delay)
+        table.insert(deferred_callbacks, {callback = callback, delay = delay})
+      end
       
       vim.fn.chansend = function(job_id, data)
         sent_job_id = job_id
         sent_data = data
         return 1
       end
+      
+      -- ウィンドウが有効であることをモック
+      local original_nvim_win_is_valid = vim.api.nvim_win_is_valid
+      vim.api.nvim_win_is_valid = function(win)
+        return true
+      end
+      
+      -- set_current_winをモック
+      local original_set_current_win = vim.api.nvim_set_current_win
+      vim.api.nvim_set_current_win = function() end
+      
+      -- スクロール関連のAPIをモック
+      local original_nvim_win_get_buf = vim.api.nvim_win_get_buf
+      vim.api.nvim_win_get_buf = function() return 1 end
+      
+      local original_nvim_buf_line_count = vim.api.nvim_buf_line_count
+      vim.api.nvim_buf_line_count = function() return 100 end
+      
+      local original_nvim_win_set_cursor = vim.api.nvim_win_set_cursor
+      vim.api.nvim_win_set_cursor = function() end
+      
+      -- vim.cmdをモック
+      local original_cmd = vim.cmd
+      vim.cmd = function() end
       
       -- プロンプトにテキストを追加
       claude_prompt.add_text("Test message")
@@ -72,31 +103,77 @@ describe("claude-prompt integration with manager", function()
       -- 送信
       claude_prompt.send_to_claude()
       
+      -- deferred callbackを実行
+      for _, cb in ipairs(deferred_callbacks) do
+        cb.callback()
+      end
+      
       -- マネージャーのインスタンスに送信されたことを確認
       assert.equals(12345, sent_job_id)
-      assert.equals("Test message", sent_data)
+      assert.equals("Test message", vim.trim(sent_data or ""))
       
       -- クリーンアップ
       vim.fn.chansend = original_chansend
+      vim.defer_fn = original_defer_fn
+      vim.api.nvim_win_is_valid = original_nvim_win_is_valid
+      vim.api.nvim_set_current_win = original_set_current_win
+      vim.api.nvim_win_get_buf = original_nvim_win_get_buf
+      vim.api.nvim_buf_line_count = original_nvim_buf_line_count
+      vim.api.nvim_win_set_cursor = original_nvim_win_set_cursor
+      vim.cmd = original_cmd
       manager.get_active_job_id = original_get_active
       manager.remove_instance("test-claude")
     end)
     
     it("should fall back to claude-cli when no manager instance", function()
-      -- claude-cliのモックjob IDを設定
+      -- claude-cliのモックjob IDとウィンドウを設定
       claude_cli.state.term_job_id = 67890
+      claude_cli.state.term_win = 200
       
       -- マネージャーのアクティブインスタンスがないことを確認
       assert.is_nil(manager.get_active_job_id())
       
       -- send_to_claudeをモック
       local original_chansend = vim.fn.chansend
+      local sent_data = nil
       local sent_job_id = nil
+      local deferred_callbacks = {}
+      
+      -- defer_fnをモック
+      local original_defer_fn = vim.defer_fn
+      vim.defer_fn = function(callback, delay)
+        table.insert(deferred_callbacks, {callback = callback, delay = delay})
+      end
       
       vim.fn.chansend = function(job_id, data)
         sent_job_id = job_id
+        sent_data = data
         return 1
       end
+      
+      -- ウィンドウが有効であることをモック
+      local original_nvim_win_is_valid = vim.api.nvim_win_is_valid
+      vim.api.nvim_win_is_valid = function(win)
+        return true
+      end
+      
+      -- set_current_winをモック
+      local original_set_current_win = vim.api.nvim_set_current_win
+      vim.api.nvim_set_current_win = function() end
+      
+      -- スクロール関連のAPIをモック
+      local original_nvim_win_get_buf = vim.api.nvim_win_get_buf
+      vim.api.nvim_win_get_buf = function() return 1 end
+      
+      local original_nvim_buf_line_count = vim.api.nvim_buf_line_count
+      vim.api.nvim_buf_line_count = function() return 100 end
+      
+      local original_nvim_win_set_cursor = vim.api.nvim_win_set_cursor
+      vim.api.nvim_win_set_cursor = function() end
+      
+      -- vim.cmdをモック
+      local original_cmd = vim.cmd
+      vim.cmd = function() end
       
       -- プロンプトにテキストを追加
       claude_prompt.add_text("Fallback test")
@@ -104,11 +181,24 @@ describe("claude-prompt integration with manager", function()
       -- 送信
       claude_prompt.send_to_claude()
       
+      -- deferred callbackを実行
+      for _, cb in ipairs(deferred_callbacks) do
+        cb.callback()
+      end
+      
       -- claude-cliに送信されたことを確認
       assert.equals(67890, sent_job_id)
+      assert.equals("Fallback test", vim.trim(sent_data or ""))
       
       -- クリーンアップ
       vim.fn.chansend = original_chansend
+      vim.defer_fn = original_defer_fn
+      vim.api.nvim_win_is_valid = original_nvim_win_is_valid
+      vim.api.nvim_set_current_win = original_set_current_win
+      vim.api.nvim_win_get_buf = original_nvim_win_get_buf
+      vim.api.nvim_buf_line_count = original_nvim_buf_line_count
+      vim.api.nvim_win_set_cursor = original_nvim_win_set_cursor
+      vim.cmd = original_cmd
     end)
   end)
 end)

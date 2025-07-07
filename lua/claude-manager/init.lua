@@ -18,6 +18,9 @@ M.config = {
     toggle_list = "<leader>cm",         -- マネージャー一覧の表示/非表示
     open_instance = "<leader>co",       -- 個別インスタンスを開く
   },
+  -- ハイライト設定
+  active_bg_color = "#2a2a3e",  -- アクティブインスタンスの背景色
+  inactive_bg_color = nil,       -- 非アクティブインスタンスの背景色
 }
 
 -- セットアップ状態
@@ -32,6 +35,10 @@ function M.setup(opts)
   
   -- 設定をマージ
   M.config = vim.tbl_extend('force', M.config, opts or {})
+  
+  -- ui_listに設定を渡す
+  M.ui_list.config.active_bg_color = M.config.active_bg_color
+  M.ui_list.config.inactive_bg_color = M.config.inactive_bg_color
   
   -- キーマッピングの設定
   M._setup_keymaps()

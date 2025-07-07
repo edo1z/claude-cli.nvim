@@ -249,19 +249,19 @@ function M.send_to_claude()
       
       -- 送信
       vim.defer_fn(function()
+        -- 現在のモードを保存
+        local current_mode = vim.fn.mode()
+        
         -- ターゲットウィンドウが有効な場合
         if target_win and api.nvim_win_is_valid(target_win) then
-          -- ウィンドウにフォーカスを移してスクロール
-          local ok = pcall(function()
-            api.nvim_set_current_win(target_win)
-            -- ターミナルバッファの最下部にスクロール
-            local buf = api.nvim_win_get_buf(target_win)
-            local line_count = api.nvim_buf_line_count(buf)
-            api.nvim_win_set_cursor(target_win, {line_count, 0})
-          end)
+          -- 一旦ノーマルモードに戻してから最下部にスクロール
+          vim.cmd('stopinsert')
+          api.nvim_set_current_win(target_win)
+          vim.cmd('normal! G')
           
-          if not ok then
-            -- エラーが発生した場合はそのまま送信
+          -- 元のモードがインサートモードだった場合は戻す
+          if current_mode == 'i' or current_mode == 't' then
+            vim.cmd('startinsert')
           end
         end
         
@@ -287,9 +287,15 @@ local function show_list_window(title, items, on_select)
     api.nvim_win_close(M.state.list_win, true)
   end
   
+  -- 既存のリストバッファを削除
+  if M.state.list_buf and api.nvim_buf_is_valid(M.state.list_buf) then
+    api.nvim_buf_delete(M.state.list_buf, {force = true})
+  end
+  
   -- バッファ作成
   M.state.list_buf = api.nvim_create_buf(false, true)
   vim.bo[M.state.list_buf].buftype = 'nofile'
+  vim.bo[M.state.list_buf].bufhidden = 'wipe' -- ウィンドウから離れたら自動削除
   
   -- アイテムをフォーマット
   local lines = {}
@@ -455,6 +461,7 @@ function M.create_snippet()
       -- エディタで編集
       local buf = api.nvim_create_buf(false, true)
       vim.bo[buf].buftype = 'nofile'
+      vim.bo[buf].bufhidden = 'wipe' -- ウィンドウから離れたら自動削除
       vim.bo[buf].filetype = 'markdown'
       
       api.nvim_buf_set_lines(buf, 0, -1, false, vim.split(content, '\n'))
@@ -503,6 +510,7 @@ end
 function M.edit_snippet(snippet, index)
   local buf = api.nvim_create_buf(false, true)
   vim.bo[buf].buftype = 'nofile'
+  vim.bo[buf].bufhidden = 'wipe' -- ウィンドウから離れたら自動削除
   vim.bo[buf].filetype = 'markdown'
   
   api.nvim_buf_set_lines(buf, 0, -1, false, vim.split(snippet.content, '\n'))
