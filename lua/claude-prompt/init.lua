@@ -253,19 +253,19 @@ function M.send_to_claude()
       
       -- 送信
       vim.defer_fn(function()
-        -- 現在のモードを保存
-        local current_mode = vim.fn.mode()
-        
         -- ターゲットウィンドウが有効な場合
         if target_win and api.nvim_win_is_valid(target_win) then
-          -- 一旦ノーマルモードに戻してから最下部にスクロール
-          vim.cmd('stopinsert')
-          api.nvim_set_current_win(target_win)
-          vim.cmd('normal! G')
+          -- ウィンドウにフォーカスを移してスクロール
+          local ok = pcall(function()
+            api.nvim_set_current_win(target_win)
+            -- ターミナルバッファの最下部にスクロール
+            local buf = api.nvim_win_get_buf(target_win)
+            local line_count = api.nvim_buf_line_count(buf)
+            api.nvim_win_set_cursor(target_win, {line_count, 0})
+          end)
           
-          -- 元のモードがインサートモードだった場合は戻す
-          if current_mode == 'i' or current_mode == 't' then
-            vim.cmd('startinsert')
+          if not ok then
+            -- エラーが発生した場合はそのまま送信
           end
         end
         
