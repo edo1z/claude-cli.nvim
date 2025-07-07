@@ -253,6 +253,23 @@ function M.send_to_claude()
       
       -- 送信
       vim.defer_fn(function()
+        -- 現在のモードを保存
+        local current_mode = vim.fn.mode()
+        
+        -- ターゲットウィンドウが有効な場合
+        if target_win and api.nvim_win_is_valid(target_win) then
+          -- 一旦ノーマルモードに戻してから最下部にスクロール
+          vim.cmd('stopinsert')
+          api.nvim_set_current_win(target_win)
+          vim.cmd('normal! G')
+          
+          -- 元のモードがインサートモードだった場合は戻す
+          if current_mode == 'i' or current_mode == 't' then
+            vim.cmd('startinsert')
+          end
+        end
+        
+        -- テキストを送信
         vim.fn.chansend(target_job_id, content)
       end, 300)
       
