@@ -249,24 +249,22 @@ function M.send_to_claude()
       
       -- 送信
       vim.defer_fn(function()
-        -- 現在のモードを保存
-        local current_mode = vim.fn.mode()
-        
-        -- ターゲットウィンドウが有効な場合
-        if target_win and api.nvim_win_is_valid(target_win) then
-          -- 一旦ノーマルモードに戻してから最下部にスクロール
-          vim.cmd('stopinsert')
-          api.nvim_set_current_win(target_win)
-          vim.cmd('normal! G')
+        -- copy-modeから抜けるために複数の方法を試す
+        if target_job_id then
+          -- 方法1: qキーでcopy-modeを抜ける（tmuxのデフォルト）
+          vim.fn.chansend(target_job_id, "q")
           
-          -- 元のモードがインサートモードだった場合は戻す
-          if current_mode == 'i' or current_mode == 't' then
-            vim.cmd('startinsert')
-          end
+          -- 少し待つ
+          vim.defer_fn(function()
+            -- 方法2: Ctrl+Cも送信してみる（念のため）
+            vim.fn.chansend(target_job_id, "\x03")
+            
+            -- さらに待ってから本文を送信
+            vim.defer_fn(function()
+              vim.fn.chansend(target_job_id, content)
+            end, 100)
+          end, 100)
         end
-        
-        -- テキストを送信
-        vim.fn.chansend(target_job_id, content)
       end, 300)
       
       -- バッファをクリア
