@@ -436,25 +436,49 @@ function M.setup(opts)
   local keymaps = M.config.keymaps
   
   -- トグル（新規セッション）
-  vim.keymap.set('n', keymaps.toggle, M.toggle, 
-    {desc = 'Claude Code: New session'})
+  vim.keymap.set('n', keymaps.toggle, function()
+    -- マネージャーを使用して新規インスタンスを追加
+    local manager = require('claude-manager')
+    local session_name = manager.add_instance(nil, "")
+    if session_name then
+      manager.open_instance(session_name)
+    end
+  end, {desc = 'Claude Code: New session'})
   
   -- 危険モードでトグル（新規セッション）
   if keymaps.toggle_dangerous then
-    vim.keymap.set('n', keymaps.toggle_dangerous, M.toggle_dangerous, 
-      {desc = 'Claude Code: New session (dangerous mode)'})
+    vim.keymap.set('n', keymaps.toggle_dangerous, function()
+      -- マネージャーを使用して新規インスタンスを追加（危険モード）
+      local manager = require('claude-manager')
+      local session_name = manager.add_instance(nil, "--dangerously-skip-permissions")
+      if session_name then
+        manager.open_instance(session_name)
+      end
+    end, {desc = 'Claude Code: New session (dangerous mode)'})
   end
   
   -- セッション継続
   if keymaps.continue_session then
-    vim.keymap.set('n', keymaps.continue_session, M.continue_session,
-      {desc = 'Claude Code: Continue last session'})
+    vim.keymap.set('n', keymaps.continue_session, function()
+      -- マネージャーを使用して新規インスタンスを追加（継続モード）
+      local manager = require('claude-manager')
+      local session_name = manager.add_instance(nil, "-c")
+      if session_name then
+        manager.open_instance(session_name)
+      end
+    end, {desc = 'Claude Code: Continue last session'})
   end
   
   -- セッション継続（危険モード）
   if keymaps.continue_session_dangerous then
-    vim.keymap.set('n', keymaps.continue_session_dangerous, M.continue_session_dangerous,
-      {desc = 'Claude Code: Continue last session (dangerous mode)'})
+    vim.keymap.set('n', keymaps.continue_session_dangerous, function()
+      -- マネージャーを使用して新規インスタンスを追加（継続＋危険モード）
+      local manager = require('claude-manager')
+      local session_name = manager.add_instance(nil, "-c --dangerously-skip-permissions")
+      if session_name then
+        manager.open_instance(session_name)
+      end
+    end, {desc = 'Claude Code: Continue last session (dangerous mode)'})
   end
   
   -- ウィンドウトグル
