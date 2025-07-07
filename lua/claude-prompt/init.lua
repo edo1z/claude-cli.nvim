@@ -222,17 +222,13 @@ function M.send_to_claude()
       end
     end
     
-    -- マネージャーにアクティブインスタンスがない場合はclaude-cliにフォールバック
+    -- マネージャーにアクティブインスタンスがない場合はclaude-cliを確認
     if not target_job_id then
       local claude_cli = require('claude-cli')
       
-      -- Claude Codeターミナルが開いていない場合は開く
+      -- Claude Codeターミナルが開いていない場合はエラー
       if not claude_cli.state.term_win or not api.nvim_win_is_valid(claude_cli.state.term_win) then
-        claude_cli.toggle()
-        -- ターミナルが起動するまで少し待つ
-        vim.defer_fn(function()
-          M.send_to_claude()
-        end, 500)
+        vim.notify("Claude Codeセッションが存在しません。先にセッションを開始してください。\n使用可能なコマンド: <leader>cc, <leader>cC, <leader>cd, <leader>cD", vim.log.levels.ERROR)
         return
       end
       
