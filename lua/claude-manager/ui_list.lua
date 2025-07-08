@@ -303,7 +303,6 @@ function M.clear_keymaps()
         pcall(vim.keymap.del, 'n', 'a', {buffer = buf})
         pcall(vim.keymap.del, 'n', 'd', {buffer = buf})
         pcall(vim.keymap.del, 'n', 'o', {buffer = buf})
-        pcall(vim.keymap.del, 'n', 'r', {buffer = buf})
         pcall(vim.keymap.del, 'n', 'q', {buffer = buf})
         pcall(vim.keymap.del, 'n', '?', {buffer = buf})
       end
@@ -341,11 +340,6 @@ function M.setup_keymaps()
         -- TODO: ui_individual.open(session_name)を呼び出す
         vim.notify("Opening individual window for: " .. session_name)
       end
-    end, {buffer = buf, noremap = true, silent = true})
-    
-    -- インスタンスを再起動
-    vim.keymap.set('n', 'r', function()
-      M.restart_current_instance()
     end, {buffer = buf, noremap = true, silent = true})
     
     -- 一覧画面を閉じる
@@ -437,19 +431,6 @@ function M.delete_current_instance()
   end)
 end
 
--- 現在のインスタンスを再起動
-function M.restart_current_instance()
-  local name = M.get_current_instance_name()
-  if not name then
-    return
-  end
-  
-  local instance = state.get_instance(name)
-  if instance then
-    tmux.restart_session(name, instance.options)
-    vim.notify("Restarted instance: " .. name)
-  end
-end
 
 -- ヘルプを表示
 function M.show_help()
@@ -460,8 +441,7 @@ function M.show_help()
     "  a     - Add new instance (auto-numbered)",
     "  d     - Delete current instance",
     "  o     - Open individual window",
-    "  r     - Restart current instance",
-    "  q     - Quit list view",
+      "  q     - Quit list view",
     "  ?     - Show this help",
     "  <C-q> - Exit terminal mode",
     "",
@@ -508,24 +488,7 @@ end
 
 -- アクティブインスタンスのハイライトを更新
 function M.update_active_highlight()
-  if not M.state.is_open then
-    return
-  end
-  
-  for session_name, buf in pairs(M.state.buffers) do
-    local wins = vim.fn.win_findbuf(buf)
-    for _, win in ipairs(wins) do
-      if session_name == M.active_instance then
-        vim.wo[win].winhighlight = 'Normal:ClaudeManagerActive'
-      else
-        if M.config.inactive_bg_color then
-          vim.wo[win].winhighlight = 'Normal:ClaudeManagerInactive'
-        else
-          vim.wo[win].winhighlight = ''
-        end
-      end
-    end
-  end
+  -- アクティブ/非アクティブの識別を削除
 end
 
 -- アクティブなインスタンスを設定

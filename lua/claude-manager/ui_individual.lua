@@ -12,6 +12,7 @@ M.state = {
   buffer = nil,
   job_id = nil,
   original_win = nil,
+  autocmd_id = nil,  -- ウィンドウフォーカス監視用
 }
 
 -- 個別ウィンドウを開く
@@ -76,6 +77,14 @@ function M.open(session_name)
   vim.wo[M.state.window].relativenumber = false
   vim.wo[M.state.window].signcolumn = "no"
   vim.wo[M.state.window].foldcolumn = "0"
+  
+  -- 色設定を適用
+  -- 初回の色設定は遅延実行（ターミナルの初期化を待つ）
+  vim.defer_fn(function()
+    M._apply_colors()
+  end, 100)
+  
+  M._setup_autocmds()
   
   -- キーマッピングの設定
   M._setup_keymaps()
@@ -158,6 +167,12 @@ function M.close()
     vim.api.nvim_set_current_win(M.state.original_win)
   end
   
+  -- autocmdをクリア
+  if M.state.autocmd_id then
+    vim.api.nvim_del_autocmd(M.state.autocmd_id)
+    M.state.autocmd_id = nil
+  end
+  
   -- 状態をリセット
   M.state.is_open = false
   M.state.active_session = nil
@@ -229,6 +244,26 @@ function M._setup_keymaps()
   vim.keymap.set('t', '<C-j>', '<C-\\><C-n><C-w>j', opts)
   vim.keymap.set('t', '<C-k>', '<C-\\><C-n><C-w>k', opts)
   vim.keymap.set('t', '<C-l>', '<C-\\><C-n><C-w>l', opts)
+end
+
+-- 色設定を適用（内部関数）
+function M._apply_colors()
+  if not M.state.window or not vim.api.nvim_win_is_valid(M.state.window) then
+    return
+  end
+  
+  -- 設定から色を取得
+  local claude_cli = require('claude-cli')
+  local colors = claude_cli.config.colors
+  
+  -- ターミナル背景色を設定（常に黒）
+  vim.cmd(string.format('highlight ClaudeManagerTerminal guibg=%s', colors.terminal_bg))
+  vim.wo[M.state.window].winhighlight = 'Normal:ClaudeManagerTerminal'
+end
+
+-- autocmdの設定（内部関数）
+function M._setup_autocmds()
+  -- 特に必要なし（アクティブ/非アクティブの識別を削除したため）
 end
 
 return M

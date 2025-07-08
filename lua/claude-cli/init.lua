@@ -43,6 +43,13 @@ M.config = {
     AddTests = "このコードに対するテストを作成してください:\n",
     Optimize = "このコードのパフォーマンスを最適化してください:\n",
   },
+  colors = {
+    active_border = "#7aa2f7",     -- アクティブ時のボーダー色（青）
+    active_title = "#7aa2f7",      -- アクティブ時のタイトル色（青）
+    inactive_border = "#3b4261",   -- 非アクティブ時のボーダー色（暗いグレー）
+    inactive_title = "#3b4261",    -- 非アクティブ時のタイトル色（暗いグレー）
+    terminal_bg = "#000000",       -- ターミナル背景色（黒）
+  },
   dangerous_mode = false,  -- 危険モードフラグ
   continue_session = false, -- セッション継続フラグ
 }
