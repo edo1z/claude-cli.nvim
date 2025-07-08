@@ -127,17 +127,5 @@ function M.create_claude_session(session_name, options, command)
   return true
 end
 
--- セッションを再起動
----@param session_name string セッション名
----@param options string 起動オプション
----@param command string|nil 実行するコマンド（テスト用）
----@return boolean 成功したかどうか
-function M.restart_session(session_name, options, command)
-  -- 既存のセッションを削除
-  M.kill_session(session_name)
-  
-  -- 新しいセッションを作成
-  return M.create_claude_session(session_name, options, command)
-end
 
 return M

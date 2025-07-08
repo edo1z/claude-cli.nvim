@@ -46,6 +46,9 @@ function M.setup(opts)
   -- ui_listのoキーでui_individualを開くように設定
   M._setup_ui_integration()
   
+  -- Neovim終了時のクリーンアップ
+  M._setup_cleanup()
+  
   M.is_setup = true
 end
 
@@ -92,6 +95,19 @@ function M._setup_ui_integration()
       end, {buffer = buf, noremap = true, silent = true})
     end
   end
+end
+
+-- Neovim終了時のクリーンアップ設定（内部関数）
+function M._setup_cleanup()
+  vim.api.nvim_create_autocmd("VimLeavePre", {
+    callback = function()
+      -- 管理しているすべてのtmuxセッションを削除
+      local instances = M.state.get_instances()
+      for _, instance in ipairs(instances) do
+        M.tmux.kill_session(instance.name)
+      end
+    end,
+  })
 end
 
 -- 一覧画面を表示
