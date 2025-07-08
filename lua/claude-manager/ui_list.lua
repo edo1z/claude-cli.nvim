@@ -5,6 +5,7 @@ local M = {}
 local tmux = require("claude-manager.tmux")
 local state = require("claude-manager.state")
 local option_selector = require("claude-manager.option_selector")
+local ui_individual = require("claude-manager.ui_individual")
 
 -- 状態管理
 M.state = {
@@ -89,7 +90,17 @@ function M.create_grid_layout(rows, cols)
       vim.api.nvim_set_current_win(windows[target_win_idx])
       vim.cmd('split')
     end
-    table.insert(windows, vim.api.nvim_get_current_win())
+    local new_win = vim.api.nvim_get_current_win()
+    table.insert(windows, new_win)
+    
+    -- 新しく作成されたウィンドウに一時的なバッファを設定（後で置き換えられる）
+    vim.api.nvim_win_call(new_win, function()
+      vim.cmd('enew')
+      local buf = vim.api.nvim_get_current_buf()
+      vim.bo[buf].buftype = 'nofile'
+      vim.bo[buf].buflisted = false
+      vim.bo[buf].bufhidden = 'wipe'
+    end)
   end
   
   -- ウィンドウサイズを均等に調整
@@ -102,9 +113,9 @@ end
 ---@param session_name string セッション名
 ---@param window_id number ウィンドウID
 local function setup_session_in_window(session_name, window_id)
-  local existing_buf = M.find_buffer_by_name(session_name)
+  local existing_buf = M.state.buffers[session_name]
   
-  if existing_buf then
+  if existing_buf and vim.api.nvim_buf_is_valid(existing_buf) then
     -- 既存バッファを再利用
     vim.api.nvim_win_set_buf(window_id, existing_buf)
   else
@@ -272,6 +283,7 @@ function M.setup_empty_state(window_id)
     vim.bo[buf].buftype = 'nofile'
     vim.bo[buf].swapfile = false
     vim.bo[buf].buflisted = false
+    vim.bo[buf].bufhidden = 'wipe'  -- ウィンドウを離れたら削除
     vim.bo[buf].modifiable = true
     
     -- 空の状態のメッセージを表示
@@ -419,14 +431,31 @@ function M.delete_current_instance()
     prompt = "Delete instance '" .. name .. "'?",
   }, function(choice)
     if choice == "Yes" then
+      -- 個別ウィンドウが開いている場合は閉じる
+      if ui_individual.is_open() and ui_individual.get_active_session() == name then
+        ui_individual.close()
+      end
+      
+      -- 対応するバッファを削除
+      if M.state.buffers[name] and vim.api.nvim_buf_is_valid(M.state.buffers[name]) then
+        pcall(vim.api.nvim_buf_delete, M.state.buffers[name], {force = true})
+        M.state.buffers[name] = nil
+      end
+      
       -- tmuxセッションを削除
       tmux.kill_session(name)
       
       -- 状態から削除
       state.remove_instance(name)
       
-      -- 画面を再描画
-      M.refresh()
+      -- インスタンスが0になった場合
+      if state.get_instance_count() == 0 then
+        -- タブが自動的に閉じるので、単にhideを呼び出す
+        M.hide()
+      else
+        -- 画面を再描画
+        M.refresh()
+      end
     end
   end)
 end

@@ -267,4 +267,10 @@ function M._setup_autocmds()
   -- 特に必要なし（アクティブ/非アクティブの識別を削除したため）
 end
 
+-- アクティブなセッション名を取得
+---@return string|nil アクティブなセッション名
+function M.get_active_session()
+  return M.state.active_session
+end
+
 return M
