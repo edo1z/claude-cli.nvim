@@ -77,6 +77,7 @@ function M.open(session_name)
   vim.wo[M.state.window].relativenumber = false
   vim.wo[M.state.window].signcolumn = "no"
   vim.wo[M.state.window].foldcolumn = "0"
+  vim.wo[M.state.window].statusline = session_name
   
   -- 色設定を適用
   -- 初回の色設定は遅延実行（ターミナルの初期化を待つ）
